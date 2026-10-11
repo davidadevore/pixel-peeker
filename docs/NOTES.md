@@ -206,3 +206,73 @@ overlay one, and Windows window chrome leaves less height to begin with.
 Fix is `min-height: 0` plus `overflow: hidden` on `.stage`. Do not remove either: the
 canvas is the one place in the app whose content can size itself from its own rendered
 size, so it is the one place where an unclamped grid row can run away.
+
+## Line Calc merged in as a view, 2026-10-11
+
+Line Calc (`stoatworks-labs/line-calc`, live at `line-calc.stoatworks-labs.com` from
+2026-09-21) was split out on purpose — a quick "how many fit on a line?" answer that a
+canvas app would bury, plus the per-circuit power model this repo never had. Three weeks
+on, the split was costing more than it saved: its data half was a re-implementation of
+`capacity.ts` in its own types, and its library was a dated snapshot of this one made by
+a generator script, so every library fix here went stale there until somebody re-ran it.
+It is now the **Line calc** view (`/#line`), and `line-calc.stoatworks-labs.com` is a
+Worker that 301-redirects every request to `https://pixel-peeker.stoatworks-labs.com/#line`.
+The line-calc repo is kept, not archived, with the old source in its history.
+
+**What came across:** `power-line.ts` and its tests, Absen's table in
+`published-chains.ts`, and the view (panel picker, data and power cards, the verdict,
+the whole-wall summary). **What did not:** its data-line model and calibration test
+(duplicates of `capacity.ts` / `capacity.test.ts`), the snapshot generator and generated
+data, its launcher, wrangler config and workflows.
+
+**`dataLine()` is now a wrapper**, over `portCapacity`, `processorCapacity` and
+`receiverCheck`, and answers differ from Line Calc's in two places, both corrections:
+
+- **The MCTRL boxes.** Line Calc's generator dropped `maxCanvasPx`, so a send-only MCTRL
+  was limited only by its ports: 256 200×200 tiles on an MCTRL4K at 8-bit/60, against 220
+  once the 8.8 Mpx canvas applies. MCTRL660 PRO 96 → 57, MCTRL660 64 → 57.
+- **Receiving cards** are checked for width and height as well as the pixel total.
+
+**Power reaches the designer too.** The right sidebar has a Power section (supply,
+breaker, 80% derate — saved in the project as an optional `power` field, so older files
+load with 16 A / 230 V / derated) giving cabinets per circuit and circuits per model, and
+the PDF prints the same on its summary and cabinet-schedule pages. Always on peak power.
+A mixed wall's circuits are counted per model, which over-counts by at most one per
+extra model — the conservative direction.
+
+**The layout trap Line Calc warned about** ("`#root { min-height: 100% }`, not
+`height`") does not transfer: that page scrolled as a document. Here `.app` stays exactly
+100vh in both views and the line calculator scrolls inside `.lc-scroll`, the grid's `1fr`
+row, with `min-height: 0` for the same reason `.stage` has it. Checked in Chromium at
+1440×900 (the app 900 px tall, the view scrolling 1002 px of content inside 852) and at
+375 px (no horizontal overflow).
+
+**The designer unmounts while Line calc shows**, rather than hiding: WallCanvas's
+`window` key handler would otherwise delete or nudge a selection nobody can see. Only the
+canvas pan/zoom is lost; it re-fits on return.
+
+### Line Calc's research, 2026-09-21 (carried over)
+
+Looking for published panels-per-power-circuit figures across the library's five makers.
+
+- **Absen — found one, and it is the good one.** PL V2 Series User Manual section 4.2
+  p.19: eighteen rows of cabinets-per-cable at AC220V and AC110V on 3x2.5mm². Mirrored at
+  `ledwallcentral.com/manuals/led_wall_manual_series_15.pdf` (the manuals.plus copy is
+  behind a bot challenge; the ledwallcentral mirror is open and `pdftotext -layout` parses
+  it cleanly). The same manual states "No more than 655360 pixels can be loaded on each
+  network port" — a vendor's own per-port cap, near NovaStar's 659,722 at 8-bit/60.
+  The 110 V column is the 220 V column halved and rounded up in all eighteen rows (a
+  current limit), and every row implies 9.7–15.3 A at 220 V: a quantised recommendation
+  inside 16 A, not a computed maximum. `power-line.test.ts` asserts both.
+- **ROE — publishes no power-chain figure and no connector type.** The Carbon, Vanish and
+  Black Quartz brochures give Max. Hanging and Max. Stacking, which are mechanical, and
+  get misread as power limits — which is why the view says so.
+- **Unilumin, Gloshine, Aluvision** — nothing in the open sources. Unilumin's manuals are
+  on ManualsLib rather than their own site; Gloshine's sheets are image PDFs.
+- A sweep of `ledwallcentral.com/manuals/led_wall_manual_series_N.pdf` for N in 1–30, plus
+  a scattering up to 400, found one other manual with the same section heading (LR3.9-7.8)
+  and no table under it.
+
+Still open: published figures for the other four makers (Unilumin's Upad manuals on
+ManualsLib are the next place to look), and volt drop along the chain, whose arithmetic
+already exists on the website's cable-voltage-drop page.

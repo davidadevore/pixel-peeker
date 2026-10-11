@@ -15,8 +15,9 @@ processor carries it on 11 of 20 ports at 64% device load — each colour on the
 > per-port capacity table, and those are pinned as tests. The cabinet library was parsed from manufacturer
 > datasheet PDFs, **each record carrying its source**.
 >
-> **It has not been used to design a wall that was then built.** No processor, receiving card or
-> panel has been connected to it, and the Resolume file has not been opened in a running Arena.
+> **It has not been used to design a wall that was then built.** No processor, receiving card,
+> panel or distro has been connected to it, and the Resolume file has not been opened in a running
+> Arena. The power circuits are steady-state arithmetic, checked against one published table.
 > **Status: alpha**. The cabinet library covers the rental ranges of Absen, Aluvision, Gloshine,
 > ROE Visual and Unilumin, and NovaStar and Brompton processing.
 >
@@ -73,6 +74,40 @@ load** — that last figure being the one to check before promising 60 Hz on a 1
 
 ---
 
+## Power circuits
+
+The **Power** section in the right sidebar takes a supply (230 V or 400 V three-phase in the UK/EU;
+120, 208 or 240 V in the US), a breaker, and whether to **derate to 80%** for a continuous load. It
+gives **cabinets per circuit** and **circuits per cabinet model**, and the PDF report prints the same.
+
+- **Always on peak power** — the all-white, full-brightness figure. A distro sized on average power
+  trips on the first white holding slide.
+- **Three phase is counted per leg**, at the phase voltage: a 400 V supply feeds the panels at 230 V.
+- **Steady state only.** Inrush at switch-on is not modelled — it is why a wall is powered up in
+  sections. **Sizing a circuit is a job for whoever signs off the distro.**
+
+---
+
+## Line calc
+
+**Line calc** in the top bar (or a link to `/#line`) is a quick calculator for one panel, without
+laying out a wall: **how many fit on one processor port, how many on one power circuit, and which of
+the two stops you.** The run you can build is the smaller, and it flips with the panel, the bit depth
+and the country.
+
+- Pick a panel from the same library, or describe one by size, resolution and watts.
+- Pick a processor, bit depth and frame rate for the **data line**; a supply, breaker and derate for
+  the **power line**.
+- The verdict says which line binds and how much of the other is left unused — spare power means the
+  fix is another port, spare link capacity means it is another circuit.
+- Enter a panel count for the whole-wall figures: ports, processors, circuits and total draw.
+
+Where the manufacturer publishes a cabinets-per-cable figure (only Absen do, for the PL V2 range), it
+is shown alongside, with the margin they left. Line calc used to be a separate tool at
+line-calc.stoatworks-labs.com, which now redirects here.
+
+---
+
 ## What it checks
 
 - Overlapping cabinets
@@ -104,4 +139,6 @@ interchange file**.
 | **The device is full but the ports are not** | Device capacity is a separate limit from the sum of the ports. |
 | **A port cannot reach 60 Hz** | Read the max-frame-rate column for that port's load. |
 | **Another tool refuses my export** | It needs the JSON export, not the project save. |
+| **Line calc allows more panels per circuit than Absen publish** | Absen's table is a conservative recommendation for their cable inside 16 A; Line calc works to your breaker. The gap is shown. |
+| **"Max. hanging" on a ROE sheet does not match the circuit count** | It is a mechanical limit, not a power one. |
 | **A cabinet's spec looks wrong** | Each record carries its datasheet source — check it there. Series-wide facts are in the comment above the series in `src/data/cabinets/`. |

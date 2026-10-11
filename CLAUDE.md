@@ -28,3 +28,7 @@ Key files:
 - `src/export/resolume.ts` — schema taken from real Arena 7.27 files (via `blend-calc`),
   not from Resolume's docs. Version stamp lives in `ARENA_VERSION`.
 - `src/export/novastar.ts` — deliberately does not emit `.scr`/`.vmp`. Read the comment.
+- `src/domain/power-line.ts` — cabinets per power circuit, steady state, peak by default.
+  `src/domain/data-line.ts` is the Line calc view's wrapper over `capacity.ts`, not a
+  second model (AGENTS.md 4.7). The view lives at `/#line`; old line-calc links redirect
+  there, so keep the hash.

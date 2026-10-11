@@ -5,10 +5,11 @@
 > numerically: it reproduces NovaStar's three published MX40 Pro per-port figures to the
 > pixel and Brompton's published SX40 headline, and those are pinned as tests. The
 > cabinet library was parsed from manufacturer datasheet PDFs, each record carrying its
-> source. The Resolume export uses a schema read off real Arena 7.27.0 files. It has
-> **not** been used to design a wall that was then built; no processor, receiving card
-> or panel has been connected to it, and the Resolume file has not been opened in a
-> running Arena.
+> source. The Resolume export uses a schema read off real Arena 7.27.0 files. The power
+> circuits are steady-state arithmetic, checked against the one published
+> cabinets-per-cable table found (Absen's). It has **not** been used to design a wall
+> that was then built; no processor, receiving card, panel or distro has been connected
+> to it, and the Resolume file has not been opened in a running Arena.
 
 A browser tool for designing LED video walls: lay out cabinets on a canvas, add
 processors, wire the ports, and find out whether it actually fits — before you find
@@ -17,10 +18,10 @@ out on site.
 Runs entirely in the browser. No account, no server, nothing uploaded. Deploys to
 Cloudflare as a static site.
 
-**Status: alpha.** The maths is tested against published manufacturer figures; the
-cabinet library covers 150 cabinets across five manufacturers and 15 processors, each
-from its maker's own datasheet; one export format is unverified. See below — the
-honesty is the point.
+**Status: alpha.** The capacity maths is tested against published manufacturer figures;
+the power circuits are steady-state arithmetic; the cabinet library covers 150 cabinets
+across five manufacturers and 15 processors, each from its maker's own datasheet; one
+export format is unverified. See below — the honesty is the point.
 
 ![Pixel Peeker — a 144-cabinet wall auto-wired across eleven ports of a NovaStar MX40
 Pro, with the port-loading table alongside](docs/screenshots/pixel-peeker.png)
@@ -43,8 +44,14 @@ load — each colour on the canvas is one port.*
 - **Check it.** Overlapping cabinets, unpatched tiles, over-capacity ports, a device
   that runs out before its ports do, an input too small to carry the wall, panels that
   cannot reach the wanted refresh rate, chains that jump around the wall.
+- **Power it.** Pick a supply and breaker and get cabinets per circuit and circuits per
+  cabinet model, on peak power, with or without the 80% continuous-load derate.
 - **Export.** PDF report, Resolume Advanced Output XML, cabinet schedule CSV, a
   screen-configuration brief for LCT/VMP, and a versioned JSON interchange file.
+- **Line calc.** A second view for the rental-desk question — how many of *this* panel
+  fit on one processor port, how many on one power circuit, and which of the two stops
+  you — without laying out a wall. Open it from the top bar, or go straight to
+  [`/#line`](https://pixel-peeker.stoatworks-labs.com/#line).
 
 ## The bit that matters: port capacity
 
@@ -97,6 +104,39 @@ NovaStar's 5G ports (CX40 Pro, and the 5G output cards in the MX2000/MX6000 Pro)
 third calibration — containers at 0.85, and 0.88 at 10-bit — taken from the V1.5.1
 specifications, which re-rated the 5G solution in September 2025.
 
+## Line calc: one panel, two lines
+
+A run of panels hangs off one processor port *and* one power circuit, and the two are
+limited by unrelated physics — so they almost never come out to the same number, and the
+run you can actually build is the smaller. The Line calc view shows both side by side and
+says which one binds, and by how much the other is left unused.
+
+- **Data line** — panels per port and per processor for any controller in the library, at
+  8/10/12-bit and any frame rate. It is the same capacity model as the designer (a
+  wrapper over it, not a copy), so the two views cannot disagree. Refresh rate is not an
+  input on purpose: it costs the panel, not the link.
+- **Power line** — `floor(breaker × derate ÷ (watts ÷ volts))` panels per circuit, for
+  230 V and 400 V three-phase (UK/EU) and 120/208/240 V (US) supplies. Three phase is
+  counted per leg at the phase voltage. Peak power is the default; average is offered
+  with a warning, because a distro sized on it trips on the first white holding slide.
+- **Whole wall** — ports, processors, circuits and total draw for a panel count.
+
+Almost no manufacturer publishes a panels-per-circuit figure. ROE's "Max. Hanging" and
+"Max. Stacking" are mechanical limits and get misread as power ones. **Absen are the
+exception**: the PL V2 Series User Manual (section 4.2, p.19) tabulates cabinets per
+3×2.5 mm² cable at AC220V and AC110V for eighteen models. The 110 V column is the 220 V
+column halved and rounded up in every row — a current limit — and every row works out at
+9.7–15.3 A at 220 V, i.e. a conservative, quantised recommendation inside 16 A rather
+than a computed maximum. Where a panel has a row, the view shows it and the margin Absen
+left. Both findings are pinned in `src/domain/power-line.test.ts`.
+
+**What it does not do:** inrush at switch-on (why a wall is powered up in sections, and
+why a breaker that holds all day can trip on power-up), volt drop along the chain, power
+factor or neutral current. Sizing a circuit is a job for whoever signs off the distro.
+
+Line calc replaced the separate Line Calc tool on 2026-10-11;
+`line-calc.stoatworks-labs.com` now redirects here.
+
 ## Data provenance
 
 Every cabinet and processor record carries a `verified` flag and a `source`. Verified
@@ -124,7 +164,8 @@ database is a protected work in its own right under UK/EU database right.
 
 ## Export honesty
 
-- **PDF report** — complete and reliable.
+- **PDF report** — complete and reliable. Includes the power circuits per cabinet model
+  for the supply chosen in the Power section (steady state, peak power).
 - **Cabinet schedule CSV, config brief, JSON interchange** — complete and reliable.
   These carry the full pixel map, port assignments and sending order.
 - **Resolume Advanced Output XML** — schema verified. Element names, nesting and number

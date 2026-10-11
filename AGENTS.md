@@ -9,7 +9,10 @@ work from scaffolding.
 ## 1. What this is
 
 A **static browser app** for designing LED video walls — cabinet layout, processor
-patching, port capacity, and export to the formats a video crew actually uses. React +
+patching, port capacity, power circuits, and export to the formats a video crew actually
+uses. A second view, **Line calc** (`/#line`), answers "how many of this panel fit on one
+port, and on one circuit?" without opening the designer; it was the separate Line Calc
+tool until 2026-10-11. React +
 TypeScript + Vite, deployed to Cloudflare as a Worker that serves static assets.
 Everything runs client-side; there is no backend and there should never be one — the
 Worker exists only to serve `dist/`, not to run code.
@@ -27,13 +30,20 @@ src/
     snapping.ts    Placement snapping, 45° drag constraint, adjacent-slot search
     wiring.ts      Port loading, wiring validation, auto-wire
     pixelmap.ts    Shared pixel-space map that every export builds on
+    power-line.ts  Cabinets per power circuit (breaker, 80% derate, phase voltage), and
+                   the per-model circuit count the Power section and PDF use
+    published-chains.ts  Absen's published cabinets-per-cable table, the one check on it
+    data-line.ts   Line calc's data half — a WRAPPER over capacity.ts, see 4.7
+    line-verdict.ts  Which of the two lines binds
   data/         The library. Facts from datasheets, each with a provenance flag.
     cabinets/      One module per manufacturer, `index.ts` aggregates; library.test.ts
                    sanity-checks every record (pitch vs pixels, W/m2 vs W/panel, card ids)
     processors.ts  Controllers and receiving cards, with the per-vendor calibrations
   export/       PDF, Resolume XML, NovaStar/interchange
-  state/        One zustand store: project document + selection + undo
+  state/        One zustand store: project document + selection + undo. lineCalc.ts is
+                the Line calc view's inputs, deliberately outside the project document
   ui/           React components. Presentation only — no maths in here.
+    linecalc/      The Line calc view (`#line`); App.tsx switches between it and the designer
 ```
 
 **`domain/` must stay React-free and side-effect-free.** It is the part that is tested,
@@ -202,6 +212,41 @@ not do the arithmetic. Four things that are decisions rather than accidents:
 Drag commits once, on release, not per pointer-move: one undo step per drag, and no
 `structuredClone` of the project at 60 Hz.
 
+### 4.7 Line calc is a view on this model, not a second one
+
+The Line calc view came from a standalone repo (`line-calc`, now a redirect to `/#line`)
+that carried its own copy of the capacity maths and a dated snapshot of this library.
+Merging it in was the point: **`domain/data-line.ts` only rounds `portCapacity`,
+`processorCapacity` and `receiverCheck` to whole cabinets.** Do not grow it a formula of
+its own, and do not pin calibration figures in `data-line.test.ts` — they live in
+`capacity.test.ts`. Three consequences that look like bugs and are not:
+
+- Panels per processor applies `processorCapacity`, which includes `maxCanvasPx`. Line
+  Calc's snapshot dropped that field, so it over-stated the MCTRL boxes (256 rather than
+  220 200×200 tiles on an MCTRL4K at 8-bit/60).
+- The receiving-card check is `receiverCheck`, which tests width and height as well as
+  the pixel total. Line Calc tested only the total.
+- One port stands for the box. `data-line.test.ts` asserts every library processor has
+  identical ports; a mixed-port controller must fail that test, not be described by its
+  first port.
+
+The power half (`power-line.ts`) is steady-state arithmetic, and every surface says so:
+**peak power is the default and the only basis the designer uses** (a distro sized on
+average trips on a white frame), **three phase uses the phase voltage** (`SupplySpec.volts`
+is 230 of a 400 V supply; `label` is the line-to-line name), and inrush, cable length and
+power factor are not modelled. Sizing a circuit is a qualified person's job; do not let
+the wording drift into implying it is a design.
+
+**`#line` is an external contract.** `line-calc.stoatworks-labs.com` 301-redirects every
+request to `https://pixel-peeker.stoatworks-labs.com/#line`. Renaming the hash breaks
+every old link. The view is selected by the hash in `ui/App.tsx`; there is no router.
+
+**The designer unmounts while Line calc shows.** WallCanvas listens for Delete, arrows,
+F and S on `window`, so a hidden canvas would act on a selection nobody can see. And
+Line calc scrolls inside `.lc-scroll`, the `1fr` row of the fixed-height `.app` — it must
+not make the page scroll (see the `.stage` note in docs/NOTES.md for why an unclamped row
+runs away).
+
 ## 5. What is genuinely done vs scaffolding
 
 **Done and tested:**
@@ -214,6 +259,8 @@ Drag commits once, on release, not per pointer-move: one undo step per drag, and
 - Canvas: place, drag-move, marquee-select, nudge, delete, pan/zoom, undo/redo
 - Snapping, 45° drag constraint and arrow-key wall growth (22 tests) — see 4.6
 - Cloudflare Worker (static-assets) config, lazy-loaded PDF bundle
+- Power circuits per cabinet model (Power section, PDF) and the Line calc view: power
+  arithmetic, Absen's published table and the whole-cabinet wrapper (31 tests)
 
 **Scaffolding / known gaps:**
 - **Cabinet library covers the rental ranges of five manufacturers** — 150 records as of
@@ -244,6 +291,12 @@ Drag commits once, on release, not per pointer-move: one undo step per drag, and
 - **No redundancy modelling** — `ProcessorSpec.redundancy` is recorded but not used in
   any calculation or check.
 - **Mixed-pitch walls** produce an approximate pixel map, flagged but not solved.
+- **Power is steady state only.** No inrush, no volt drop along a chain (the arithmetic is
+  on the website's cable-voltage-drop page), no power factor or neutral current. A mixed
+  wall's circuits are counted per model, which can over-count by one or two.
+- **Only Absen publish a cabinets-per-circuit figure** among the five makers (PL V2 user
+  manual p.19). ROE print mechanical Max. Hanging/Stacking instead; nothing found for
+  Unilumin, Gloshine or Aluvision. No `CabinetSpec` field for the power connector.
 
 ## 6. Conventions
 
