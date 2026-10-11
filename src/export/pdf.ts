@@ -10,6 +10,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { PixelMap } from '../domain/pixelmap';
+import { resolvePowerPlan, wallCircuits } from '../domain/power-line';
 import type { CabinetSpec, Project } from '../domain/types';
 import type { Issue, WallStats } from '../domain/wall';
 import { chainColour } from '../domain/wiring';
@@ -118,6 +119,10 @@ export function buildReport(input: ReportInput): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
   const pageW = doc.internal.pageSize.getWidth();
   let page = 1;
+  const power = wallCircuits(stats.byModel, resolvePowerPlan(project.power));
+  const circuitBasis =
+    `${power.input.breakerAmps} A on ${power.input.supply.label}` +
+    (power.input.derate < 1 ? ', derated to 80%' : ', full breaker rating');
 
   // ---------------------------------------------------------------- page 1
   header(doc, project, 'System report', page);
@@ -183,6 +188,13 @@ export function buildReport(input: ReportInput): jsPDF {
       `${(stats.peakAmps230 / 3).toFixed(1)} A per phase @ 230 V  /  ` +
         `${(stats.peakAmps110 / 3).toFixed(1)} A per phase @ 110 V`,
     ],
+    [
+      'Power circuits',
+      power.circuits
+        ? `${power.circuits} × ${circuitBasis}` +
+          (power.input.supply.phases === 3 ? ` (${power.supplies} three-phase supplies)` : '')
+        : '—',
+    ],
     ['Reference pitch', `${Number(stats.referencePitchMm.toFixed(4))} mm`],
   ];
   if (stats.fillRatio < 0.999) {
@@ -238,6 +250,43 @@ export function buildReport(input: ReportInput): jsPDF {
     },
   });
   y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+
+  if (power.rows.length) {
+    y = sectionTitle(doc, `Power circuits — ${circuitBasis}, peak`, y);
+    autoTable(doc, {
+      startY: y,
+      theme: 'striped',
+      headStyles: { fillColor: ACCENT, fontSize: 8 },
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      head: [['Model', 'Qty', 'Peak per cabinet', 'Cabinets per circuit', 'Circuits']],
+      body: power.rows.map((r) => [
+        `${r.spec.manufacturer} ${r.spec.model}`,
+        String(r.count),
+        `${r.spec.powerMaxW} W`,
+        r.panelsPerCircuit ? String(r.panelsPerCircuit) : 'NONE FIT',
+        r.circuits ? String(r.circuits) : '—',
+      ]),
+      margin: { left: 12, right: 12 },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 3 && data.cell.raw === 'NONE FIT') {
+          data.cell.styles.textColor = '#b91c1c';
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 5;
+    doc.setFontSize(8);
+    doc.setTextColor(MUTED);
+    const powerNote = doc.splitTextToSize(
+      `Cabinets per circuit = breaker × derating ÷ (peak W ÷ ${power.input.supply.volts} V phase voltage), ` +
+        'each model counted on runs of its own. Steady state only: inrush at switch-on is not modelled, ' +
+        'which is why a wall is powered up in sections. Sizing a circuit is a job for whoever signs off the distro.',
+      pageW - 24,
+    ) as string[];
+    doc.text(powerNote, 12, y);
+    doc.setTextColor(INK);
+    y += powerNote.length * 3.6 + 6;
+  }
 
   const unverified = stats.byModel.filter((r) => !r.spec.verified);
   if (unverified.length) {

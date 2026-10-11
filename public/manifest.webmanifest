@@ -8,6 +8,14 @@
   "background_color": "#0e1116",
   "theme_color": "#0e1116",
   "orientation": "any",
+  "shortcuts": [
+    {
+      "name": "Line calc",
+      "short_name": "Line calc",
+      "description": "How many panels fit on one processor port and one power circuit",
+      "url": "/#line"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

@@ -1,22 +1,105 @@
 /**
  * Pixel Peeker — top-level layout.
  *
+ * Two views share the top bar: the wall designer, and the Line calc view (how many of
+ * one panel fit on a port and on a circuit — formerly the separate Line Calc tool).
+ * There is no router. The view is a mode, and `#line` in the URL selects the line
+ * calculator, so a link can land straight on it — that is what the old
+ * line-calc.stoatworks-labs.com redirects to.
+ *
+ * The designer UNMOUNTS while the line calculator is showing, rather than being hidden.
+ * WallCanvas listens for keys on `window` — Delete, arrows, F, S — and a hidden canvas
+ * would still act on them, deleting a selection nobody can see. Nothing is lost: the
+ * project lives in the store, and only the canvas pan/zoom resets (to fit) on return.
+ *
  * The signal format lives in the top bar rather than a settings dialog on purpose:
  * changing bit depth or frame rate re-costs every port on the wall, and that needs to
  * be one click away with the consequences visible in the same glance.
  */
 
+import { useEffect, useState } from 'react';
 import { useStore } from '../state/store';
 import { LibraryPanel } from './LibraryPanel';
 import { SystemPanel } from './SystemPanel';
 import { WallCanvas } from './WallCanvas';
+import { LineCalcView } from './linecalc/LineCalcView';
+import { FRAME_RATES, REFRESH_RATES } from './signal-options';
 import { wireBitsPerPixel } from '../domain/capacity';
 import type { BitDepth } from '../domain/types';
 
-const FRAME_RATES = [23.98, 24, 25, 29.97, 30, 50, 59.94, 60, 100, 119.88, 120, 240];
-const REFRESH_RATES = [1920, 2880, 3840, 7680];
+type Mode = 'design' | 'line';
+
+/** The deep link for the Line calc view. Keep it: old line-calc URLs redirect here. */
+const LINE_HASH = '#line';
+
+const modeFromHash = (): Mode => (window.location.hash === LINE_HASH ? 'line' : 'design');
+
+/** The view, kept in step with the URL hash so it can be linked to and reloaded. */
+function useMode(): [Mode, (m: Mode) => void] {
+  const [mode, setMode] = useState<Mode>(modeFromHash);
+  useEffect(() => {
+    const onHash = () => setMode(modeFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const choose = (m: Mode) => {
+    setMode(m);
+    // replaceState, not a hash assignment: switching views is not a navigation, so it
+    // should not stack up Back-button history, and it must not fire `hashchange`.
+    const { pathname, search } = window.location;
+    window.history.replaceState(null, '', m === 'line' ? `${pathname}${search}${LINE_HASH}` : `${pathname}${search}`);
+  };
+  return [mode, choose];
+}
+
+function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
+  return (
+    <div className="modes" role="tablist" aria-label="View">
+      <button role="tab" aria-selected={mode === 'design'} className={mode === 'design' ? 'on' : ''} onClick={() => onChange('design')}>
+        Wall designer
+      </button>
+      <button role="tab" aria-selected={mode === 'line'} className={mode === 'line' ? 'on' : ''} onClick={() => onChange('line')}>
+        Line calc
+      </button>
+    </div>
+  );
+}
 
 export function App() {
+  const [mode, setMode] = useMode();
+  return mode === 'line' ? <LineApp mode={mode} setMode={setMode} /> : <DesignApp mode={mode} setMode={setMode} />;
+}
+
+function AboutButton() {
+  /* Opens the shared About dialog — see public/about.js, which delegates this
+     attribute from the document, so nothing needs importing here. */
+  return (
+    <button type="button" data-stoatworks-about>
+      About
+    </button>
+  );
+}
+
+function LineApp({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
+  return (
+    <div className="app">
+      <div className="topbar">
+        <div className="brand">
+          PIXEL<span>PEEKER</span>
+        </div>
+        <ModeSwitch mode={mode} onChange={setMode} />
+        <div className="tagline">
+          How many panels fit on one processor port, and how many on one power circuit.
+        </div>
+        <div className="spacer" />
+        <AboutButton />
+      </div>
+      <LineCalcView />
+    </div>
+  );
+}
+
+function DesignApp({ mode, setMode }: { mode: Mode; setMode: (m: Mode) => void }) {
   const project = useStore((s) => s.project);
   const setSignal = useStore((s) => s.setSignal);
   const setMeta = useStore((s) => s.setMeta);
@@ -36,6 +119,8 @@ export function App() {
         <div className="brand">
           PIXEL<span>PEEKER</span>
         </div>
+
+        <ModeSwitch mode={mode} onChange={setMode} />
 
         <input
           className="name-input"
@@ -146,11 +231,7 @@ export function App() {
           <button onClick={redo} disabled={!canRedo} title="Redo (⇧⌘Z)">
             ↷
           </button>
-          {/* Opens the shared About dialog — see public/about.js, which delegates
-              this attribute from the document, so nothing needs importing here. */}
-          <button type="button" data-stoatworks-about>
-            About
-          </button>
+          <AboutButton />
         </div>
       </div>
 

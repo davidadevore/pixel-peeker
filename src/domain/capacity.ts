@@ -20,6 +20,7 @@
 import type {
   BitDepth,
   CabinetSpec,
+  LinkFormat,
   PortSpec,
   ProcessorSpec,
   ReceivingCardSpec,
@@ -117,7 +118,7 @@ export interface PortCapacity {
  * will allow, and a designer comparing Pixel Peeker against VMP or Tessera needs the
  * numbers to agree. Headroom is a design decision, exposed as `fillTo` in auto-wiring.
  */
-export function portCapacity(port: PortSpec, signal: SignalFormat): PortCapacity {
+export function portCapacity(port: PortSpec, signal: LinkFormat): PortCapacity {
   const efficiency = portEfficiency(port, signal.bitDepth);
   const bitsPerPixel = wireBitsPerPixel(signal.bitDepth, port.packing);
   const payloadBps = port.linkSpeedGbps * 1e9 * efficiency;
@@ -145,7 +146,7 @@ export function portCapacity(port: PortSpec, signal: SignalFormat): PortCapacity
  * ignores bit depth entirely but still halves when the frame rate doubles past 60 Hz.
  * `capacityScaling: 'pixel-rate'` selects that shape — see the field comment.
  */
-export function processorCapacity(spec: ProcessorSpec, signal: SignalFormat): number {
+export function processorCapacity(spec: ProcessorSpec, signal: LinkFormat): number {
   const portSum = spec.ports.reduce((n, p) => n + portCapacity(p, signal).capacityPx, 0);
   const canvasCap = spec.maxCanvasPx ?? Infinity;
   if (spec.totalCapacityPx == null) return Math.min(portSum, canvasCap);
@@ -237,7 +238,7 @@ export function driveCheck(
  * and `export/novastar.ts` with only the port in scope.
  */
 export function receiverCheck(
-  spec: CabinetSpec,
+  spec: Pick<CabinetSpec, 'pixelsX' | 'pixelsY'>,
   receiver: ReceivingCardSpec | undefined,
 ): { ok: boolean; detail: string } {
   if (!receiver) {

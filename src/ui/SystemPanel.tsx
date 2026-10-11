@@ -1,13 +1,15 @@
 /**
- * Right sidebar — processors, wiring, port loading, design checks and exports.
+ * Right sidebar — processors, wiring, port loading, power circuits, design checks and
+ * exports.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useProcessorSpecs, useStore } from '../state/store';
 import { chainColour, DEFAULT_AUTOWIRE, type WirePattern } from '../domain/wiring';
 import { buildPixelMap } from '../domain/pixelmap';
 import { buildResolumeXml, buildSliceCsv } from '../export/resolume';
 import { driveCheck } from '../domain/capacity';
+import { breakerFor, resolvePowerPlan, SUPPLIES, wallCircuits } from '../domain/power-line';
 import { NOVASTAR_EXPORTS } from '../config/features';
 
 export function SystemPanel() {
@@ -16,6 +18,7 @@ export function SystemPanel() {
       <ProcessorsSection />
       <WiringSection />
       <PortLoadingSection />
+      <PowerSection />
       <ChecksSection />
       <ExportSection />
     </div>
@@ -193,6 +196,108 @@ function PortLoadingSection() {
           )}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Circuits per cabinet model, from `domain/power-line.ts` — the per-circuit model the
+ * Line calc view brought with it. Always on peak power: this is what sizes a distro.
+ */
+function PowerSection() {
+  const plan = useStore((s) => s.project.power);
+  const byModel = useStore((s) => s.derived.stats.byModel);
+  const setPower = useStore((s) => s.setPower);
+  const c = useMemo(() => wallCircuits(byModel, resolvePowerPlan(plan)), [byModel, plan]);
+  const { supply, breakerAmps, derate } = c.input;
+
+  return (
+    <div className="section">
+      <h2>
+        Power{' '}
+        {c.circuits > 0 && (
+          <span className="count">
+            {c.circuits} circuit{c.circuits === 1 ? '' : 's'}
+          </span>
+        )}
+      </h2>
+      <div className="row">
+        <div className="field" style={{ flex: 2 }}>
+          <label>Supply</label>
+          <select
+            value={supply.id}
+            onChange={(e) => {
+              const next = SUPPLIES.find((x) => x.id === e.target.value) ?? SUPPLIES[0];
+              setPower({ supplyId: next.id, breakerAmps: breakerFor(next, breakerAmps) });
+            }}
+          >
+            {SUPPLIES.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label} ({x.region})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label>Breaker</label>
+          <select value={breakerAmps} onChange={(e) => setPower({ breakerAmps: Number(e.target.value) })}>
+            {supply.breakers.map((b) => (
+              <option key={b} value={b}>
+                {b} A
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={derate < 1}
+          onChange={(e) => setPower({ derated: e.target.checked })}
+        />
+        Derate to 80% for a continuous load
+      </label>
+
+      {c.rows.length > 0 ? (
+        <>
+          <table className="circuits">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th className="num">Cabs</th>
+                <th className="num">Per circuit</th>
+                <th className="num">Circuits</th>
+              </tr>
+            </thead>
+            <tbody>
+              {c.rows.map((r) => (
+                <tr key={r.spec.id} className={r.panelsPerCircuit === 0 ? 'over' : ''}>
+                  <td>{r.spec.model}</td>
+                  <td className="num">{r.count}</td>
+                  <td className="num">{r.panelsPerCircuit || '—'}</td>
+                  <td className="num">{r.circuits || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="note">
+            {c.peakKw.toFixed(1)} kW peak, {c.peakAmpsPerLeg.toFixed(1)} A
+            {supply.phases === 3 ? ` per leg across three phases (${c.supplies} three-phase supplies)` : ` at ${supply.volts} V`}.
+            Each model is counted on runs of its own.
+          </div>
+          {c.unpowerable.map((r) => (
+            <div key={r.spec.id} className="note warn">
+              One {r.spec.model} draws more than a {breakerAmps} A circuit on {supply.label} allows.
+            </div>
+          ))}
+        </>
+      ) : (
+        <div className="empty">No cabinets yet.</div>
+      )}
+      <div className="note">
+        Peak power, steady state. Inrush at switch-on is not modelled, and sizing a circuit is a
+        job for whoever signs off the distro.
+      </div>
     </div>
   );
 }

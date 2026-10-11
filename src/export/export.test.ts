@@ -171,6 +171,11 @@ describe('exports', () => {
     const bytes = doc.output('arraybuffer');
     expect(bytes.byteLength).toBeGreaterThan(5000);
     expect(new TextDecoder().decode(new Uint8Array(bytes).slice(0, 5))).toBe('%PDF-');
+    // The power section is on by default, costed at 16 A / 230 V / 80%: 170 W PL2.5 Pro
+    // cabinets are 17 to a circuit, so 144 of them need 9. jsPDF writes text uncompressed.
+    const text = new TextDecoder('latin1').decode(new Uint8Array(bytes));
+    expect(text).toContain('Power circuits');
+    expect(text).toContain('9 × 16 A on 230 V single phase');
 
     const outDir = process.env.PP_WRITE_ARTEFACTS;
     if (outDir) {

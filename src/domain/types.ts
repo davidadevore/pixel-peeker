@@ -207,6 +207,34 @@ export interface SignalFormat {
   ledRefreshHz: number;
 }
 
+/**
+ * The part of a signal format that costs link bandwidth: bit depth and frame rate.
+ * The capacity functions take this rather than the whole `SignalFormat` so the Line calc
+ * view can ask with exactly these two — it deliberately has no refresh input.
+ */
+export type LinkFormat = Pick<SignalFormat, 'bitDepth' | 'frameRateHz'> & {
+  /** Allowed so a whole `SignalFormat` can be passed, and ignored: refresh costs no link bandwidth. */
+  ledRefreshHz?: number;
+};
+
+// ---------------------------------------------------------------------------
+// Power plan — the circuits the wall is fed from
+// ---------------------------------------------------------------------------
+
+/**
+ * How the wall is powered, for the per-circuit count in the Power section and the PDF.
+ * Optional on `Project`: files saved before it existed load with `DEFAULT_POWER_PLAN`
+ * (see `domain/power-line.ts`). Always costed on PEAK power — a distro sized on the
+ * average trips on the first white holding slide.
+ */
+export interface PowerPlan {
+  /** One of `SUPPLIES` in `domain/power-line.ts`. */
+  supplyId: string;
+  breakerAmps: number;
+  /** Apply the 80% continuous-load rule. Off = the full breaker rating, a trip point. */
+  derated: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Wall layout
 // ---------------------------------------------------------------------------
@@ -272,4 +300,6 @@ export interface Project {
   customCabinets: CabinetSpec[];
   customProcessors: ProcessorSpec[];
   customReceivers: ReceivingCardSpec[];
+  /** Absent in files saved before the power model existed; read it through `resolvePowerPlan`. */
+  power?: PowerPlan;
 }

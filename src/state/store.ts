@@ -13,11 +13,13 @@ import { CABINET_LIBRARY } from '../data/cabinets';
 import { PROCESSOR_LIBRARY, RECEIVER_LIBRARY } from '../data/processors';
 import type {
   CabinetSpec,
+  PowerPlan,
   Project,
   ProcessorSpec,
   ReceivingCardSpec,
   SignalFormat,
 } from '../domain/types';
+import { DEFAULT_POWER_PLAN } from '../domain/power-line';
 import { buildGrid, snap, validateWall, wallStats } from '../domain/wall';
 import type { Issue } from '../domain/wall';
 import {
@@ -81,6 +83,8 @@ interface State {
   setSignal: (s: Partial<SignalFormat>) => void;
   setCanvas: (c: Partial<Project['canvas']>) => void;
   setMeta: (m: Partial<Pick<Project, 'name' | 'client' | 'venue' | 'designer' | 'notes'>>) => void;
+  /** Part of the document, so it is saved, undone and printed in the PDF with the wall. */
+  setPower: (p: Partial<PowerPlan>) => void;
 
   addGrid: (specId: string, cols: number, rows: number, xMm?: number, yMm?: number) => void;
   /**
@@ -210,6 +214,7 @@ export const useStore = create<State>((set, get) => {
     setSignal: (s) => commit((d) => Object.assign(d.signal, s)),
     setCanvas: (c) => commit((d) => Object.assign(d.canvas, c)),
     setMeta: (m) => commit((d) => Object.assign(d, m)),
+    setPower: (p) => commit((d) => { d.power = { ...DEFAULT_POWER_PLAN, ...d.power, ...p }; }),
 
     addGrid: (specId, cols, rows, xMm = 0, yMm = 0) =>
       commit((d) => {

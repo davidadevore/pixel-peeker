@@ -33,6 +33,8 @@ const REQUIRED = [
   'PDF report',
   'Resolume XML',
   'Save project',
+  // The Line calc view has nothing to do with NovaStar exports and ships in both builds.
+  'Panels on one circuit',
 ];
 
 const files = readdirSync(DIR).filter((f) => f.endsWith('.js'));
