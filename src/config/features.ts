@@ -16,7 +16,8 @@
  * it hands you a cabinet schedule and a config brief rather than the .scr / .nprj files
  * people actually expect, because the VMP port mapping is still ambiguous (see
  * docs/novastar-vmp-format.md). Until that is resolved, the lite build ships the design
- * tool, the PDF report and the Resolume export — the parts with no caveats attached.
+ * tool, the PDF report and the Resolume export. The Resolume export still has its own
+ * caveat: the schema is verified, but no file it writes has been opened in a running Arena.
  *
  * When the VMP format is unblocked, delete the flag rather than leaving it lying around.
  */

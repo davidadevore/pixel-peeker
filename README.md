@@ -202,7 +202,8 @@ npm test
 
 The **full** build has everything described above. The **lite** build drops the NovaStar exports
 (cabinet schedule, LCT/VMP brief, JSON interchange) and ships just the design tool, the PDF report
-and the Resolume export, which are the parts with no caveats attached.
+and the Resolume export. That export keeps its caveat from [Export honesty](#export-honesty): the
+schema is verified, but the file hasn't been opened in a running Arena.
 
 ```bash
 npm run build        # full  -> dist/
