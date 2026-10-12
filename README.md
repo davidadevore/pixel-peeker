@@ -223,8 +223,11 @@ It's deployed as a **Worker serving static assets**, not a Pages project. There'
 code: the Worker's only job is to serve `dist/`. That's the shape Cloudflare's "Import a
 repository" flow creates, and what the rest of the fleet uses.
 
-The normal route is to connect the repo once in the Cloudflare dashboard, after which every push
-to `main` builds and deploys itself:
+A push to `main` that touches more than the docs deploys the full build through
+`.github/workflows/deploy.yml`, which runs the tests, builds, deploys with wrangler and then checks
+the live site is serving that build. The
+workflow doesn't touch the lite Worker. To build either one from the Cloudflare dashboard instead,
+connect the repo there with these settings:
 
 | Setting | Full | Lite |
 |---|---|---|
@@ -243,8 +246,9 @@ npm run deploy       # full
 npm run deploy:lite  # lite
 ```
 
-`wrangler.toml`, `wrangler.lite.toml`, `public/_headers` and `public/_redirects` are all already
-in place. `_redirects` is what makes the client-side routes resolve rather than 404.
+`wrangler.toml`, `wrangler.lite.toml` and `public/_headers` are all already in place. There's no
+`_redirects`: `not_found_handling = "single-page-application"` in each wrangler file is what makes
+the client-side routes resolve rather than 404.
 
 <!-- selfhost:start -->
 ## Run your own copy
