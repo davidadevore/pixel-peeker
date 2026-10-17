@@ -22,7 +22,7 @@
  * constant — 756 Mbps of payload — reproduces every row of the table.
  */
 
-import type { ProcessorSpec, ReceivingCardSpec } from '../domain/types';
+import type { BreakoutSpec, ProcessorSpec, ReceivingCardSpec } from '../domain/types';
 
 // ---------------------------------------------------------------------------
 // Receiving cards
@@ -101,6 +101,70 @@ export const RECEIVER_LIBRARY: ReceivingCardSpec[] = [
 export function receiverById(id: string): ReceivingCardSpec | undefined {
   return RECEIVER_LIBRARY.find((r) => r.id === id);
 }
+
+// ---------------------------------------------------------------------------
+// Breakout boxes — fibre converters and data distribution units
+// ---------------------------------------------------------------------------
+
+/**
+ * The boxes at the far end of a trunk port. Each output is costed with the TRUNK's
+ * efficiency and packing at `outputLinkGbps` (see `domain/breakout.ts`), so these
+ * records carry only what the box itself decides: how many outputs, and how fast.
+ */
+export const CVT8_5G: BreakoutSpec = {
+  id: 'novastar-cvt8-5g',
+  manufacturer: 'NovaStar',
+  model: 'CVT8-5G',
+  outputs: 8,
+  outputLinkGbps: 5,
+  outputMedium: 'RJ45',
+  verified: true,
+  source: 'NovaStar CVT8-5G Fiber Converter Specifications V1.1.0, 2026-05-11, novastar.tech',
+  notes:
+    'One 40G optical port in (41.25 Gbps; CVT8-5GS single-mode LC to 10 km, CVT8-5GM multi-mode MPO to 100/150 m on OM3/OM4), eight 5G BaseT Ethernet ports out on CAT6 up to 100 m. No backup optical port on the box. Half-1U, 33 W rated. Feeds 5G receiving cards (XA50 Pro, CA50E) only.',
+};
+
+export const CVT10: BreakoutSpec = {
+  id: 'novastar-cvt10',
+  manufacturer: 'NovaStar',
+  model: 'CVT10',
+  outputs: 10,
+  outputLinkGbps: 1,
+  outputMedium: 'RJ45',
+  verified: true,
+  source: 'NovaStar CVT10 Fiber Converter Specifications V1.3.7, novastar.tech',
+  notes:
+    'Two 10G optical ports (OPT 1 main, OPT 2 backup), ten gigabit Ethernet ports. All ten work from a 10.3125G (64b/66b) optical port, which is what the MX_4x10G_Fiber card has — NovaStar rate one of its trunks at ten gigabit ports’ load. From an older 10G (8b/10b) port only the first EIGHT Ethernet ports work; this record does not model that case. The CVT10 Pro (IP65, 2U) has the same ports and the same rule.',
+};
+
+export const TESSERA_XD: BreakoutSpec = {
+  id: 'brompton-xd',
+  manufacturer: 'Brompton',
+  model: 'Tessera XD',
+  outputs: 10,
+  outputLinkGbps: 1,
+  outputMedium: 'RJ45',
+  verified: true,
+  source: 'Brompton Tessera XD Distribution Unit Data Sheet, Apr 2023, bromptontech.com',
+  notes:
+    '"Each 10G trunk supports up to ten independent 1G connections to fixtures, each having the same pixel capacity as a 1G Tessera output" — 525K px at 8bpc, 60 Hz. 10G in on copper (Cat6A to 60 m) or single-mode fibre (to 2 km), with a thru port for up to five more XDs on the same trunk. Daisy-chained XDs SHARE the trunk: the combined load on every XD port of the same number must fit one 1G link. Not modelled — one XD per trunk here.',
+};
+
+export const TESSERA_XD_S: BreakoutSpec = {
+  id: 'brompton-xd-s',
+  manufacturer: 'Brompton',
+  model: 'Tessera XD-S',
+  outputs: 12,
+  outputLinkGbps: 1,
+  outputMedium: 'RJ45',
+  verified: false,
+  source:
+    'NOT A DATASHEET: twelve 1G outputs per LED Wall Central’s NAB 2026 coverage of Brompton, which also reads "two 10G inputs". Check against the Tessera XD-S data sheet.',
+  notes:
+    'The SQ200 / QD-S partner unit. Twelve 1G outputs on a 10G trunk that carries ten 1G links’ worth, so the outputs can be loaded past the trunk — the trunk check is what catches it.',
+};
+
+export const BREAKOUT_LIBRARY: BreakoutSpec[] = [CVT8_5G, CVT10, TESSERA_XD, TESSERA_XD_S];
 
 // ---------------------------------------------------------------------------
 // Processors
@@ -203,7 +267,8 @@ function mctrlGigPort(n: number) {
  * fixture links, which is NovaStar's own description ("A single optical port has the
  * same load capacity of 10x 1G Ethernet ports, and a single card supports up to 40x
  * Ethernet port outputs"). The Ethernet drops themselves live in a CVT10 converter at
- * the far end of the fibre, so the trunk is the thing the controller actually has.
+ * the far end of the fibre, so the trunk is the thing the controller actually has —
+ * and the CVT10's ten outputs are what chains are patched to.
  */
 function novaFibreTrunk10G(card: number, n: number) {
   return {
@@ -213,7 +278,7 @@ function novaFibreTrunk10G(card: number, n: number) {
     medium: 'SFP+' as const,
     efficiency: 0.95,
     packing: 'container' as const,
-    subLinks: 10,
+    breakout: CVT10,
   };
 }
 
@@ -224,7 +289,8 @@ function novaFibreTrunk10G(card: number, n: number) {
  * links serving 5G receiving cards (XA50 Pro, CA50E). Each link is a `nova5GPort`, so
  * the calibration — and its history — is documented there. Since V1.5.1 the same eight
  * links are also available on copper straight off the chassis, as the MX_8x5G_Base-T
- * output card, with the same per-port figures.
+ * output card, with the same per-port figures. Chains are patched to the CVT8-5G's
+ * outputs either way; on the copper card read "CVT8-5G 3" as the chassis's port 3.
  *
  * The 40G trunk at 12-bit gives 11,804,800 px, which is precisely NovaStar's "maximum
  * load of a single output card" for that card. At 8/10-bit they cap the card at
@@ -240,7 +306,7 @@ function novaFibreTrunk40G(card: number) {
     efficiency: NOVA_5G_EFFICIENCY,
     efficiencyByDepth: { 10: NOVA_5G_EFFICIENCY_10BIT },
     packing: 'container' as const,
-    subLinks: 8,
+    breakout: CVT8_5G,
   };
 }
 
@@ -287,7 +353,7 @@ function bromptonGigPort(n: number) {
  * Brompton 10G trunk: ten independent 1G fixture connections, "each having the same
  * pixel capacity as a 1G Tessera output" (SX40 data sheet), broken out by an XD unit.
  */
-function bromptonTrunk(n: number) {
+function bromptonTrunk(n: number, breakout: BreakoutSpec = TESSERA_XD) {
   return {
     id: `10g${n}`,
     label: `10G ${n}`,
@@ -295,7 +361,7 @@ function bromptonTrunk(n: number) {
     medium: 'SFP+' as const,
     efficiency: BROMPTON_LINK_EFFICIENCY,
     packing: 'naive' as const,
-    subLinks: 10,
+    breakout,
   };
 }
 
@@ -582,7 +648,7 @@ export const PROCESSOR_LIBRARY: ProcessorSpec[] = [
     id: 'brompton-sq200',
     manufacturer: 'Brompton',
     model: 'Tessera SQ200 (36 Mpx, with QD-S)',
-    ports: Array.from({ length: 12 }, (_, i) => bromptonTrunk(i + 1)),
+    ports: Array.from({ length: 12 }, (_, i) => bromptonTrunk(i + 1, TESSERA_XD_S)),
     inputs: [
       { id: 'hdmi1', connector: 'HDMI 2.1', maxWidthPx: 8192, maxHeightPx: 4320, maxFps: 250, maxBitDepth: 12 },
       { id: 'dp1', connector: 'DP 2.1', maxWidthPx: 8192, maxHeightPx: 4320, maxFps: 250, maxBitDepth: 12 },

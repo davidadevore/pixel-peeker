@@ -29,6 +29,7 @@ src/
     wall.ts        Geometry, derived physical figures, layout validation
     snapping.ts    Placement snapping, 45° drag constraint, adjacent-slot search
     wiring.ts      Port loading, wiring validation, auto-wire
+    breakout.ts    Breakout boxes (CVT8-5G, CVT10, Tessera XD): a trunk port's outputs, see 4.8
     pixelmap.ts    Shared pixel-space map that every export builds on
     power-line.ts  Cabinets per power circuit (breaker, 80% derate, phase voltage), and
                    the per-model circuit count the Power section and PDF use
@@ -247,6 +248,23 @@ Line calc scrolls inside `.lc-scroll`, the `1fr` row of the fixed-height `.app` 
 not make the page scroll (see the `.stage` note in docs/NOTES.md for why an unclamped row
 runs away).
 
+### 4.8 Chains run from breakout outputs, not from trunks
+
+A trunk port (a 40G fibre to a CVT8-5G, a 10G fibre to a CVT10, a Tessera 10G trunk to
+an XD) carries a `PortSpec.breakout`, and cabinets never hang off the trunk itself:
+`outputLinks` in `domain/breakout.ts` replaces it with the box's outputs, and wiring,
+auto-wire, the exports and Line calc all walk those. Each output is the trunk's own
+calibration at the box's output rate, so it is costed by `portCapacity` like any port
+and reproduces the vendor's per-port figure — not a new constant. The trunk is then
+checked as the sum of its outputs (`TrunkLoad`, `trunk-over-capacity`), which only
+binds on a box with more outputs than its trunk carries: the Tessera XD-S, twelve 1G
+outputs on a 10G trunk. Chains name an output as `<trunk id>/<n>`; a file saved before
+this, with a chain on the trunk id, fails `no-such-output` and needs re-wiring.
+
+Not modelled: daisy-chained XDs sharing a trunk, and a CVT10 behind an 8b/10b optical
+port (only eight outputs work). The XD-S record is `verified: false` — its twelve
+outputs come from trade-press coverage, not a Brompton sheet.
+
 ## 5. What is genuinely done vs scaffolding
 
 **Done and tested:**
@@ -254,6 +272,7 @@ runs away).
 - Resolume Arena 7.27 preset export, schema taken from real Arena files
 - Wall geometry, stats, layout validation
 - Auto-wire (serpentine/column/row) with fill limits, and wiring validation
+- Breakout boxes: chains on CVT8-5G / CVT10 / XD outputs, trunk checked as their sum (14 tests)
 - Pixel map, PDF report, cabinet schedule, config brief, JSON interchange (9 tests);
   the map divides by the true pitch (width / pixels), not the datasheet's rounded label (3 tests)
 - Canvas: place, drag-move, marquee-select, nudge, delete, pan/zoom, undo/redo

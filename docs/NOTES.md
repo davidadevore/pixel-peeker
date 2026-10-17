@@ -276,3 +276,22 @@ Looking for published panels-per-power-circuit figures across the library's five
 Still open: published figures for the other four makers (Unilumin's Upad manuals on
 ManualsLib are the next place to look), and volt drop along the chain, whose arithmetic
 already exists on the website's cable-voltage-drop page.
+
+## Breakout boxes, 2026-10-17
+
+Trunk ports used to be one fat port with an informational `subLinks` count, and a chain
+was patched to the trunk — so auto-wire would put a 23.6 Mpx daisy-chain on one MX6000
+Pro (5G) "port", eight times what the 5G Ethernet cable from the CVT8-5G carries, and
+Line calc answered "panels per port" per 40G fibre. `subLinks` is gone; trunk ports
+carry a `BreakoutSpec` (CVT8-5G, CVT10, Tessera XD, Tessera XD-S) and chains run from
+its outputs. Each output is the trunk's own efficiency and packing at the box's output
+rate, and comes out at the vendor's per-port number without a new constant: 2,951,200
+(CVT8-5G), 659,722 (CVT10), 525,000 (XD — the XD sheet prints it).
+
+Sheets: NovaStar CVT8-5G V1.1.0 (2026-05-11) and CVT10 V1.3.7, both mirrored at
+`luxwave.vn/downloads/novastar/`; Brompton XD Apr 2023 at rentex.com. Two things in them
+the model does not do: the CVT10 gives only eight working outputs behind a 10G 8b/10b
+optical port (the MX_4x10G_Fiber is 64b/66b, so all ten), and daisy-chained XDs share
+one trunk with each port NUMBER sharing one 1G link. No Brompton sheet found for the
+XD-S; twelve outputs is from LED Wall Central's NAB 2026 piece, and the record is
+unverified. It is also the one box where the trunk check binds.

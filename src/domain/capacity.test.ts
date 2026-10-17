@@ -90,7 +90,7 @@ describe('NovaStar COEX published device capacity', () => {
 
   it('gives the MX_4x10G_Fiber trunk the load of ten gigabit ports, as published', () => {
     const trunk = processorById('novastar-mx2000-pro')!.ports[0];
-    expect(trunk.subLinks).toBe(10);
+    expect(trunk.breakout?.outputs).toBe(10);
     // "A single optical port has the same load capacity of 10x 1G Ethernet ports."
     const perSubLink = portCapacity(trunk, at60(8)).capacityPx / 10;
     expect(perSubLink).toBeCloseTo(659_722, -1);
@@ -141,7 +141,7 @@ describe('NovaStar 5G solution (CX40 Pro; CX_1x40G_Fiber / MX_8x5G_Base-T output
   });
 
   it('gives the 40G trunk the load of eight 5G ports, and the published card figure at 12-bit', () => {
-    expect(trunk.subLinks).toBe(8);
+    expect(trunk.breakout?.outputs).toBe(8);
     expect(portCapacity(trunk, at60(8)).capacityPx).toBe(8 * 2_951_200);
     // "Maximum load of a single output card: 12bit@60Hz: 11,804,800 pixels"
     expect(portCapacity(trunk, at60(12)).capacityPx).toBe(11_804_800);
@@ -241,7 +241,7 @@ describe('Brompton Tessera published capacity', () => {
 
   it('gives a 10G trunk ten 1G links’ worth, as the SX40 data sheet says', () => {
     const trunk = sx40.ports[0];
-    expect(trunk.subLinks).toBe(10);
+    expect(trunk.breakout?.outputs).toBe(10);
     expect(portCapacity(trunk, at60(12)).capacityPx / 10).toBe(350_000);
   });
 

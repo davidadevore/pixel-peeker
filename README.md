@@ -36,7 +36,8 @@ load. Each colour on the canvas is one port.*
   connectors and device capacity limits.
 - **Wire it up.** Auto-wire in serpentine or column order to a chosen fill limit, or patch ports
   by hand. Every port shows its load, its headroom, and the highest frame rate it could sustain at
-  that load.
+  that load. On a fibre trunk the cabinets are wired to the breakout box at the far end (a CVT8-5G,
+  CVT10 or Tessera XD), one chain per output, and the trunk is checked as their total.
 - **Check it.** Overlapping cabinets, unpatched tiles, over-capacity ports, a device that runs out
   before its ports do, an input too small to carry the wall, panels that can't reach the refresh
   rate you want, chains that jump around the wall.
@@ -98,6 +99,11 @@ NovaStar's 5G ports (CX40 Pro, and the 5G output cards in the MX2000/MX6000 Pro)
 calibration (containers at 0.85, and 0.88 at 10-bit), taken from the V1.5.1 specifications, which
 re-rated the 5G solution in September 2025.
 
+Breakout boxes don't add a calibration. A CVT8-5G output is the 40G trunk's own link at 5 Gb/s, and
+it comes out at NovaStar's 2,951,200 px per 5G port (8-bit, 60 Hz). A CVT10 output comes out at the
+gigabit 659,722, and a Tessera XD output at the 525,000 its data sheet prints. The trunk check only
+bites on the Tessera XD-S, which has twelve 1G outputs on a trunk that carries ten.
+
 ## Line calc: one panel, two lines
 
 A run of panels hangs off one processor port *and* one power circuit, and the two are limited by
@@ -147,6 +153,9 @@ name). Unverified records are badged in the UI and called out in the PDF report.
 | Unilumin     | 20 — Upad IV (8), URM III (11), Upad III | ✅ datasheet, except the Upad III (rental-house cut sheet, power confirmed by Unilumin's manual) |
 | NovaStar     | 12 — COEX MX40 Pro, CX40 Pro, MX30, MX20, KU20, MX2000 Pro and MX6000 Pro (1G and 5G); MCTRL4K, MCTRL660 PRO, MCTRL660 | ✅ datasheet |
 | Brompton     | 3 — Tessera SX40, S8, SQ200 (with QD-S) | ✅ datasheet |
+
+Breakout boxes: NovaStar CVT8-5G and CVT10 and Brompton Tessera XD are from their datasheets. The
+Tessera XD-S is not: its twelve outputs come from trade-press coverage, and it's flagged unverified.
 
 Receiving-card pixel limits (NovaStar A10s Pro, A8s Pro, A8s, A5s Plus, A4s; Brompton R2) are
 verified against the card datasheets.
