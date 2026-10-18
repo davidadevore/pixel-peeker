@@ -144,9 +144,9 @@ export interface PortSpec {
  *
  * The output links speak the trunk's protocol, so each one is costed with the trunk
  * port's own efficiency and packing at `outputLinkGbps` — the trunk is not a different
- * calibration, just a wider pipe. Outputs can carry more between them than the trunk
- * does (a Brompton XD-S has twelve 1G outputs on a 10G trunk); the trunk check catches
- * that, see `trunkLoads` in `domain/wiring.ts`.
+ * calibration, just a wider pipe — unless the box sets `outputEfficiency`. The trunk is
+ * also checked as the sum of its outputs (`TrunkLoad` in `domain/wiring.ts`), which binds
+ * only when the outputs could carry more between them than the trunk does.
  */
 export interface BreakoutSpec extends Provenance {
   id: string;
@@ -156,6 +156,13 @@ export interface BreakoutSpec extends Provenance {
   outputs: number;
   outputLinkGbps: number;
   outputMedium: PortMedium;
+  /**
+   * The outputs' own link efficiency, for a box whose trunk runs at a different one. The
+   * Tessera XD-T is the case: an SQ200's QD-S trunk carries twelve 1G links' worth, and
+   * each output is still the 756 Mbps Tessera link. Absent: outputs inherit the trunk's
+   * `efficiency` and `efficiencyByDepth`.
+   */
+  outputEfficiency?: number;
   notes?: string;
 }
 

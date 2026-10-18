@@ -9,8 +9,10 @@
  * NOT A SECOND CAPACITY MODEL. An output is a `PortSpec` like any other — the trunk
  * port's own efficiency and packing at the box's output link rate — and is costed by
  * `portCapacity`. Every output in the library reproduces its vendor's per-port figure
- * that way (capacity.test.ts): 2,951,200 px per CVT8-5G output, 659,722 per CVT10
- * output, 525,000 per XD output, all at 8-bit/60.
+ * that way (breakout.test.ts): 2,951,200 px per CVT8-5G output, 659,722 per CVT10
+ * output, 525,000 per XD and XD-T output, all at 8-bit/60. The XD-T is the one box
+ * whose trunk runs faster than its outputs (an SQ200's QD-S trunk carries twelve 1G
+ * links), so it names its outputs' efficiency instead (`BreakoutSpec.outputEfficiency`).
  *
  * Every processor port is an "output link" here; a port without a breakout is its own
  * single output. Wiring, auto-wire, the exports and Line calc all walk output links,
@@ -39,10 +41,17 @@ export function portOutputs(port: PortSpec): OutputLink[] {
   if (!box) return [{ port }];
   return Array.from({ length: box.outputs }, (_, i) => {
     const n = i + 1;
-    const { breakout: _box, ...link } = port;
+    const { breakout: _box, efficiencyByDepth, ...link } = port;
+    const calibration =
+      box.outputEfficiency != null
+        ? { efficiency: box.outputEfficiency }
+        : efficiencyByDepth
+          ? { efficiencyByDepth }
+          : {};
     return {
       port: {
         ...link,
+        ...calibration,
         id: breakoutOutputId(port, n),
         label: `${port.label} › ${box.model} ${n}`,
         linkSpeedGbps: box.outputLinkGbps,

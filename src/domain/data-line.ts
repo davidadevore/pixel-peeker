@@ -75,7 +75,7 @@ export interface DataLineResult {
   deviceCapacityPx: number;
   /**
    * The trunks, not their breakout outputs, are what bind: the box's outputs could
-   * carry more than their trunks do (a Tessera XD-S: twelve 1G outputs on a 10G trunk).
+   * carry more than their trunks do. No box in the library does that today.
    */
   trunkBound: boolean;
   /** Ports the box fills before its own ceiling stops it. */

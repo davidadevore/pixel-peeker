@@ -266,10 +266,20 @@ describe('Brompton Tessera published capacity', () => {
     expect(processorCapacity(s8, at60(12))).toBe(8 * 350_000);
   });
 
-  it('sizes the SQ200’s twelve QD-S trunks to its 36 Mpx licence at 12-bit', () => {
+  it('gives each SQ200 QD-S trunk twelve 1G links’ worth, as the XD-T sheet says', () => {
+    // "SQ200 via QD-S (All 12 ports)", each 1G output "capable of 525K pixels at 8bpc,
+    // 60Hz" — Tessera XD-T Preliminary Data Sheet, Mar 2026.
+    const trunk = sq200.ports[0];
+    expect(trunk.breakout?.outputs).toBe(12);
+    expect(portCapacity(trunk, at60(8)).capacityPx).toBe(12 * 525_000);
+    expect(portCapacity(trunk, at60(10)).capacityPx).toBe(12 * 420_000);
+    expect(portCapacity(trunk, at60(12)).capacityPx).toBe(12 * 350_000);
+  });
+
+  it('holds the SQ200 to its 36 Mpx licence, well under its twelve trunks', () => {
     expect(sq200.ports).toHaveLength(12);
     const trunkSum = sq200.ports.reduce((n, p) => n + portCapacity(p, at60(12)).capacityPx, 0);
-    expect(trunkSum).toBe(42_000_000);
+    expect(trunkSum).toBe(50_400_000);
     expect(processorCapacity(sq200, at60(12))).toBe(36_000_000);
     expect(processorCapacity(sq200, at60(8))).toBe(36_000_000);
   });

@@ -46,8 +46,9 @@ export interface PortLoad {
 /**
  * One trunk port and the breakout outputs behind it. The outputs are each checked as
  * a port; this is the check that they fit down the trunk between them. On every box in
- * the library but the XD-S the outputs sum to exactly the trunk, so it can only bind on
- * a box with more outputs than its trunk carries.
+ * the library the outputs sum to the trunk (the XD-T's twelve included: the QD-S trunk
+ * carries all twelve), so it binds only on a box with more outputs than its trunk
+ * carries. Daisy-chained XDs sharing a trunk will be the first, once they are modelled.
  */
 export interface TrunkLoad {
   port: PortSpec;
